@@ -1,11 +1,10 @@
 package com.bmcho.xflow.contoller;
 
+import com.bmcho.xflow.dto.AllowUserResponse;
+import com.bmcho.xflow.dto.AllowedUserResponse;
 import com.bmcho.xflow.dto.RegisterUserResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import com.bmcho.xflow.service.UserQueueService;
 import reactor.core.publisher.Mono;
 
@@ -17,7 +16,16 @@ public class UserQueueController {
 
     @PostMapping("")
     public Mono<RegisterUserResponse> registerUser(@RequestParam(name = "queue", defaultValue = "default") String queue, @RequestParam(name = "user_id") Long userId) {
-        return userQueueService.registerWaitQueue(queue, userId)
-            .map(RegisterUserResponse::new);
+        return userQueueService.registerWaitQueue(queue, userId).map(RegisterUserResponse::new);
+    }
+
+    @PostMapping("/allow")
+    public Mono<AllowUserResponse> allowUser(@RequestParam(name = "queue", defaultValue = "default") String queue, @RequestParam(name = "count") Long count) {
+        return userQueueService.allowUser(queue, count).map(allowed -> new AllowUserResponse(count, allowed));
+    }
+
+    @GetMapping("/allowed")
+    public Mono<AllowedUserResponse> isAllowedUser(@RequestParam(name = "queue", defaultValue = "default") String queue, @RequestParam(name = "user_id") Long userId) {
+        return userQueueService.isAllowed(queue, userId).map(AllowedUserResponse::new);
     }
 }
