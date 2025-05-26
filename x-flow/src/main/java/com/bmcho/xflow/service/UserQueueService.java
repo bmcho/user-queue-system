@@ -11,6 +11,9 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import reactor.util.function.Tuples;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.function.Function;
 
@@ -49,11 +52,36 @@ public class UserQueueService {
             .map(rank -> rank >= 0);
     }
 
+    public Mono<Boolean> isAllowedByToken(final String queue, final Long userId, final String token) {
+        return this.generateToken(queue, userId)
+            .filter(gen -> gen.equalsIgnoreCase(token))
+            .map(i -> true)
+            .defaultIfEmpty(false);
+    }
+
     public Mono<Long> getRank(final String queue, final Long userId) {
         return reactiveRedisTemplate.opsForZSet().rank(userQueueWaitKey.apply(queue), userId.toString())
             .defaultIfEmpty(-1L)
             .map(rank -> rank >= 0 ? rank + 1: rank);
     }
+
+    public Mono<String> generateToken(final String queue, final Long userId) {
+        MessageDigest digest = null;
+        try {
+            digest = MessageDigest.getInstance("SHA-256");
+            var input = "user-queue-%s-%d".formatted(queue, userId);
+            byte[] encodedHash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+
+            StringBuilder hexString = new StringBuilder();
+            for (byte aByte: encodedHash) {
+                hexString.append(String.format("%02x", aByte));
+            }
+            return Mono.just(hexString.toString());
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 
     @Scheduled(initialDelay = 5000, fixedDelay = 10000)
     public void scheduleAllowUser() {
